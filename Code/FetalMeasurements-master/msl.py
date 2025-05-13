@@ -5,16 +5,29 @@ from matplotlib import pyplot as plt
 
 from sklearn import svm
 
+RIGHT_HEMI = 1
+LEFT_HEMI = 5
+
 def find_planes(sub_img, sub_seg, visualize=False):
+    #print("printing the subseg: ", sub_seg)
+    #print("printing the sub image: ", sub_img)
+
     OUTPUT_PLANES = {}
     for i in range(sub_seg.shape[2]):
         # Take current slice
         cur_plane_seg = sub_seg[:, :, i]
         cur_plane_img = sub_img[:, :, i]
-
+        #print("printing the cur_plane_seg: ", cur_plane_seg)
+        #print("printing the cur_plane_img: ", cur_plane_img)
         # Seperate to two hemispheres
-        right_pts = np.array(np.where(cur_plane_seg == 1.)).T
-        left_pts = np.array(np.where(cur_plane_seg == 3.)).T
+        right_pts = np.array(np.where(cur_plane_seg == RIGHT_HEMI)).T
+        left_pts = np.array(np.where(cur_plane_seg == LEFT_HEMI)).T
+        #print("printing the right_pts: ", right_pts)
+       # print("printing the left_pts: ", left_pts)
+        #right_pts = np.array(np.where(cur_plane_seg == 1.)).T
+        #left_pts = np.array(np.where(cur_plane_seg == 3.)).T
+
+        print(f"[SLICE {i}] found R={len(right_pts)} L={len(left_pts)}") #DEBUG
 
         # If no points of hemisphere, skip
         if len(left_pts) <= 0 or len(right_pts) <= 0:

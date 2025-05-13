@@ -1,6 +1,14 @@
 from .lovasz import *
 from .processing_utils import *
+import sys
+sys.path.append('/workspace/fetal-brain-measurement/Code/FetalMeasurements-master/SubSegmentation')
+
+from lovasz import lovasz_softmax
+from processing_utils import acc_no_bg
+
 from fastai.basic_train import load_learner
+
+learn = load_learner(model_path, model_name)
 
 
 class BrainSegmentationModel(object):

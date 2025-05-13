@@ -25,13 +25,14 @@ def bbox_ND(img):
 
 class NiftiElement(object):
     def __init__(self, nii_elem, seg_elem, selection=None, transform=None):
-        image = nibabel.load(nii_elem).get_fdata().astype(np.float64)
-        #image = nibabel.load(nii_elem).get_fdata().astype(float)
+        #image = nibabel.load(nii_elem).get_fdata().astype(np.float64)
+        image = nibabel.load(nii_elem).get_fdata().astype(float)
         image = image.transpose([2, 0, 1])
         self.metadata = {}
         self.metadata["image"] = image
         self.metadata["filename"] = nii_elem
-        bbox_image = nibabel.load(seg_elem).get_fdata().astype(np.float)
+        bbox_image = nibabel.load(seg_elem).get_fdata().astype(float)
+        #bbox_image = nibabel.load(seg_elem).get_fdata().astype(np.float)
         bbox_image = bbox_image.transpose([2, 0, 1])
         bbox_image = bbox_image > .5
 
@@ -106,7 +107,8 @@ class NiftiDataset(Dataset):
                                  res_z=self.metadata.loc[idx, "resZ"],)
                     
             img_name = os.path.join(self.nii_dir, fn)
-            image = nibabel.load(img_name).get_fdata().astype(np.float)
+            image = nibabel.load(img_name).get_fdata().astype(float)
+            #image = nibabel.load(img_name).get_fdata().astype(np.float)
             image = image.transpose([2,0,1])
             self.metadata.at[idx, "image"] = image
             self.metadata.at[idx, "filename"] = img_name
@@ -121,7 +123,8 @@ class NiftiDataset(Dataset):
                                  res_z=self.metadata.loc[idx, "resZ"],)
                     
             bbox_img_name = os.path.join(self.seg_dir, fn)
-            bbox_image = nibabel.load(bbox_img_name).get_fdata().astype(np.float)
+            bbox_image = nibabel.load(bbox_img_name).get_fdata().astype(float)
+            #bbox_image = nibabel.load(bbox_img_name).get_fdata().astype(np.float)
             bbox_image = bbox_image.transpose([2,0,1])
             bbox_image = bbox_image > .5
             

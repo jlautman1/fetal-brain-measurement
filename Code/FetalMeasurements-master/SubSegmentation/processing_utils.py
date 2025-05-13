@@ -1,7 +1,9 @@
 import torch
 import numpy as np
 import nibabel as nib
-from fastai.vision import Image
+from fastai.vision import ImageDataBunch
+from fastai.vision.image import Image as PILImage
+
 from scipy import ndimage
 from skimage.transform import resize
 from scipy.ndimage import zoom
@@ -160,7 +162,7 @@ def prepare_for_model(images):
             image = ndimage.rotate(image, angle, reshape=False)
             image = torch.Tensor(image)
             image = image.unsqueeze(0)
-            image = Image(image)
+            image = PILImage(image)
             current_images.append(image)
 
         res.append(current_images)
@@ -172,7 +174,7 @@ def prepare_for_model_no_tta(images):
     for image in images:
         image = torch.Tensor(image)
         image = image.unsqueeze(0)
-        image = Image(image)
+        image = PILImage(image)
         res.append(image)
 
     return res
@@ -210,6 +212,7 @@ def post_processing(images, min_ax, zeros, x_ax, y_ax, filename, model_image_siz
     images = zoom_images(images, 0, min_ax / model_image_size[0])
     images = uncrop_images(images, zeros, x_ax, y_ax)
     images = post_process(np.array(images), "")
+    images = np.array(images).astype(np.uint8)  # <- enforce int label dtype
     return save_nifti(images, filename)
 
 

@@ -19,8 +19,10 @@ import traceback
 import argparse
 
 import sys
-sys.path.append("path/to/fetal_segmentation")
+sys.path.append('/workspace/fetal-brain-measurement/Code/FetalMeasurements-master/SubSegmentation')
 
+from lovasz import lovasz_softmax
+from processing_utils import acc_no_bg
 
 
 def load_model():
@@ -57,7 +59,12 @@ if __name__ == "__main__":
         raise ValueError('Missing input dir or files')
 
     fm = load_model()
+    print("infiles are : ", infiles)
     for a in infiles:
+        # a is the input file path, out_dir is the output directory path.
+        print("a is: ", a)
+        print("args.outputdir: ", args.outputdir)
+        print("os.path.basename(a): ", os.path.basename(a))
         try:
             fm.execute(a, out_dir=os.path.join(args.outputdir, os.path.basename(a)))
         except Exception:

@@ -15,6 +15,7 @@ def save_nifti(data, path):
 def read_img(in_file):
     print("Reading: {0}".format(in_file))
     image = nib.load(os.path.abspath(in_file))
+    print("finished reading, returning image: ", image)
     return image
 
 def get_image(data, affine=None, nib_class=nib.Nifti1Image):

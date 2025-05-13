@@ -37,7 +37,7 @@ def secondary_prediction(mask, vol, config2, model2,
     if padding is not None:
         bbox_start = np.maximum(bbox_start - padding, 0)
         bbox_end = np.minimum(bbox_end + padding, mask.shape)
-    data = vol.astype(np.float)[
+    data = vol.astype(np.float64)[
            bbox_start[0]:bbox_end[0],
            bbox_start[1]:bbox_end[1],
            bbox_start[2]:bbox_end[2]
@@ -78,7 +78,7 @@ def preproc_and_norm(data, preprocess_method=None, norm_params=None, scale=None,
     return data
 
 
-def get_prediction(data, model, augment, num_augments, return_all_preds, overlap_factor, config):
+#def get_prediction(data, model, augment, num_augments, return_all_preds, overlap_factor, config):
     if augment is not None:
         patch_shape = config["patch_shape"] + [config["patch_depth"]]
         if augment == 'all':
@@ -91,10 +91,36 @@ def get_prediction(data, model, augment, num_augments, return_all_preds, overlap
             prediction = np.median(prediction, axis=0)
     else:
         prediction = \
-            patch_wise_prediction(model=model,
-                                  data=np.expand_dims(data, 0),
+            patch_wise_prediction(model=model, 
+                                  #data=np.expand_dims(data, 0),
+                                  data = np.expand_dims(data.cpu().numpy(), 0),   # move to CPU, then NumPy
+                                  #data = np.expand_dims(data.detach().cpu().numpy(), 0),
                                   overlap_factor=overlap_factor,
                                   patch_shape=config["patch_shape"] + [config["patch_depth"]])
+    prediction = prediction.squeeze()
+    return prediction
+def get_prediction(data, model, augment, num_augments, return_all_preds, overlap_factor, config):
+    if augment is not None:
+        patch_shape = config["patch_shape"] + [config["patch_depth"]]
+        if augment == 'all':
+            prediction = predict_augment(data, model=model, overlap_factor=overlap_factor, num_augments=num_augments, patch_shape=patch_shape)
+        elif augment == 'flip':
+            prediction = predict_flips(data, model=model, overlap_factor=overlap_factor, patch_shape=patch_shape, config=config)
+        else:
+            raise ValueError(f"Unknown augmentation method: {augment}")
+        if not return_all_preds:
+            prediction = np.median(prediction, axis=0)
+    else:
+        patch_shape = config["patch_shape"] + [config["patch_depth"]]
+
+        if hasattr(data, 'cpu'):
+            data = data.cpu().numpy()
+        data = np.expand_dims(data, 0)
+
+        prediction = patch_wise_prediction(model=model,
+                                           data=data,
+                                           overlap_factor=overlap_factor,
+                                           patch_shape=patch_shape)
     prediction = prediction.squeeze()
     return prediction
 
@@ -124,7 +150,7 @@ def main(input_path, output_path, has_gt, scan_id, overlap_factor,
     save_nifti(nifti_data, os.path.join(output_path,  'data.nii.gz'))
     nifti_data, swap_axis = move_smallest_axis_to_z(nifti_data)
     data_size = nifti_data.shape
-    data = nifti_data.astype(np.float).squeeze()
+    data = nifti_data.astype(np.float64).squeeze()
     print('original_shape: ' + str(data.shape))
 
     if (z_scale is None):
@@ -164,7 +190,7 @@ def main(input_path, output_path, has_gt, scan_id, overlap_factor,
     if config2 is not None:
         swapped_mask = swap_to_original_axis(swap_axis, mask)
         save_nifti(np.int16(swapped_mask), os.path.join(output_path, 'prediction_all.nii.gz'))
-        prediction = secondary_prediction(mask, vol=nifti_data.astype(np.float),
+        prediction = secondary_prediction(mask, vol=nifti_data.astype(np.float64),
                                           config2=config2, model2=model2,
                                           preprocess_method2=preprocess_method2, norm_params2=norm_params2,
                                           overlap_factor=overlap_factor, augment2=augment2, num_augment=num_augment2,
