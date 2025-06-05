@@ -14,6 +14,7 @@ from fetal_segmentation.training.train_functions.training import load_old_model,
 from fetal_segmentation.utils.read_write_data import list_load
 from fetal_segmentation.utils.read_write_data import save_nifti, read_img
 import fetal_segmentation.data_generation.preprocess
+import nibabel as nib
 
 
 def str2bool(v):
@@ -30,32 +31,62 @@ def str2bool(v):
 def secondary_prediction(mask, vol, config2, model2,
                          preprocess_method2=None, norm_params2=None,
                          overlap_factor=0.9, augment2=None, num_augment=10, return_all_preds=False):
+
     pred = mask
     bbox_start, bbox_end = find_bounding_box(pred)
     check_bounding_box(pred, bbox_start, bbox_end)
-    padding = [16, 16, 8]
-    if padding is not None:
-        bbox_start = np.maximum(bbox_start - padding, 0)
-        bbox_end = np.minimum(bbox_end + padding, mask.shape)
-    data = vol.astype(np.float64)[
-           bbox_start[0]:bbox_end[0],
-           bbox_start[1]:bbox_end[1],
-           bbox_start[2]:bbox_end[2]
-           ]
+    padding = np.array([16, 16, 8])
+
+    bbox_start = np.maximum(bbox_start - padding, 0)
+    bbox_end = np.minimum(bbox_end + padding, mask.shape)
+
+    print(f"🧠 bbox_start: {bbox_start}, bbox_end: {bbox_end}")
+    if np.any(bbox_start >= bbox_end):
+        raise ValueError(f"Invalid bounding box: {bbox_start} to {bbox_end}")
+
+    roi = mask[bbox_start[0]:bbox_end[0],
+               bbox_start[1]:bbox_end[1],
+               bbox_start[2]:bbox_end[2]]
+
+    data = vol[bbox_start[0]:bbox_end[0],
+               bbox_start[1]:bbox_end[1],
+               bbox_start[2]:bbox_end[2]]
+    nib.save(nib.Nifti1Image(data, np.eye(4)), "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_secondary_input_patch.nii.gz")
 
     data = preproc_and_norm(data, preprocess_method2, norm_params2)
 
-    prediction = get_prediction(data, model2, augment=augment2, num_augments=num_augment, return_all_preds=return_all_preds,
-                                overlap_factor=overlap_factor, config=config2)
+    prediction = get_prediction(data, model2,
+                                 augment=augment2,
+                                 num_augments=num_augment,
+                                 return_all_preds=return_all_preds,
+                                 overlap_factor=overlap_factor,
+                                 config=config2)
 
-    padding2 = list(zip(bbox_start, np.array(vol.shape) - bbox_end))
-    if return_all_preds:
-        padding2 = [(0, 0)] + padding2
-    print(padding2)
-    print(prediction.shape)
-    prediction = np.pad(prediction, padding2, mode='constant', constant_values=0)
+    # ⚠️ OLD: padding prediction into full volume
+    # padding2 = list(zip(bbox_start, np.array(vol.shape) - bbox_end))
+    # prediction = np.pad(prediction, padding2, mode='constant', constant_values=0)
 
-    return prediction
+    # Convert to binary BEFORE inserting
+    binary_prediction = postprocess_prediction(prediction, threshold=0.5)
+
+    # Insert into full volume
+    full_prediction = np.zeros_like(mask, dtype=np.uint8)
+    full_prediction[
+        bbox_start[0]:bbox_end[0],
+        bbox_start[1]:bbox_end[1],
+        bbox_start[2]:bbox_end[2]
+    ] = binary_prediction.astype(np.uint8)
+
+    # Save debug cropped prediction
+    nib.save(nib.Nifti1Image(binary_prediction.astype(np.uint8), np.eye(4)), 
+            "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_pred_roi_bin.nii.gz")
+
+    # Save debug full prediction
+    nib.save(nib.Nifti1Image(full_prediction.astype(np.uint8), np.eye(4)), 
+            "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_full_secondary.nii.gz")
+
+    return full_prediction
+
 
 
 def preproc_and_norm(data, preprocess_method=None, norm_params=None, scale=None, preproc=None):
@@ -78,7 +109,7 @@ def preproc_and_norm(data, preprocess_method=None, norm_params=None, scale=None,
     return data
 
 
-#def get_prediction(data, model, augment, num_augments, return_all_preds, overlap_factor, config):
+def get_prediction(data, model, augment, num_augments, return_all_preds, overlap_factor, config):
     if augment is not None:
         patch_shape = config["patch_shape"] + [config["patch_depth"]]
         if augment == 'all':
@@ -92,38 +123,13 @@ def preproc_and_norm(data, preprocess_method=None, norm_params=None, scale=None,
     else:
         prediction = \
             patch_wise_prediction(model=model, 
-                                  #data=np.expand_dims(data, 0),
-                                  data = np.expand_dims(data.cpu().numpy(), 0),   # move to CPU, then NumPy
-                                  #data = np.expand_dims(data.detach().cpu().numpy(), 0),
+                                  data=np.expand_dims(data, 0),
+                                #   data = np.expand_dims(data.cpu().numpy(), 0),   # move to CPU, then NumPy
+                                #  data = np.expand_dims(data.detach().cpu().numpy(), 0),
                                   overlap_factor=overlap_factor,
                                   patch_shape=config["patch_shape"] + [config["patch_depth"]])
     prediction = prediction.squeeze()
     return prediction
-def get_prediction(data, model, augment, num_augments, return_all_preds, overlap_factor, config):
-    if augment is not None:
-        patch_shape = config["patch_shape"] + [config["patch_depth"]]
-        if augment == 'all':
-            prediction = predict_augment(data, model=model, overlap_factor=overlap_factor, num_augments=num_augments, patch_shape=patch_shape)
-        elif augment == 'flip':
-            prediction = predict_flips(data, model=model, overlap_factor=overlap_factor, patch_shape=patch_shape, config=config)
-        else:
-            raise ValueError(f"Unknown augmentation method: {augment}")
-        if not return_all_preds:
-            prediction = np.median(prediction, axis=0)
-    else:
-        patch_shape = config["patch_shape"] + [config["patch_depth"]]
-
-        if hasattr(data, 'cpu'):
-            data = data.cpu().numpy()
-        data = np.expand_dims(data, 0)
-
-        prediction = patch_wise_prediction(model=model,
-                                           data=data,
-                                           overlap_factor=overlap_factor,
-                                           patch_shape=patch_shape)
-    prediction = prediction.squeeze()
-    return prediction
-
 
 def delete_nii_gz(s):
     if s[-3:] == '.gz':
@@ -232,17 +238,15 @@ def main(input_path, output_path, has_gt, scan_id, overlap_factor,
 
 
 def get_params(config_dir):
-    #model_file = os.path.join(current_dir, "..", "..", "Models", "Sliceselect", "22_model_bbd")
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    config_dir = os.path.join(current_dir, "..", "..", "..", "..", "Models", "Brainseg", "22-ROI")
-    #config_dir = r'\\fmri-df4\projects\Mammilary_Bodies\BrainBiometry-IJCARS-Netanell\Models\Brainseg\22-ROI'
     with open(os.path.join(config_dir, 'config.json'), 'r') as f:
         __config = json.load(f)
     with open(os.path.join(config_dir, 'norm_params.json'), 'r') as f:
         __norm_params = json.load(f)
-    __model_path = config_dir  # ✅ Just point to the model folder
+    __model_path = config_dir  # Correctly use the given directory
 
     return __config, __norm_params, __model_path
+
+
 
 
 def predict_single_case(volume_path):

@@ -24,6 +24,7 @@ CLASSES = [RIGHT_HEMI, CEREBELLUM, RIGHT_LATERAL_VENTRICLE, CSF, LEFT_HEMI, LEFT
 
 
 def _contrast(img, min_range, max_range):
+    #print("→ _contrast window: low =", min_range, ", high =", max_range)   
     return skimage.exposure.rescale_intensity(img, in_range=(min_range, max_range), out_range=(0, 1))
 
 
@@ -181,6 +182,9 @@ def prepare_for_model_no_tta(images):
 
 
 def pre_processing_no_tta(img_data, model_image_size):
+    for z in range(img_data.shape[2]):
+        low, high = np.percentile(img_data[:, :, z], (1, 99))
+        img_data[:, :, z] = _contrast(img_data[:, :, z], low, high)
     original_x, original_y = img_data[:, :, 0].shape
     min_ax = min(original_y, original_x)
     zeros = np.zeros_like(img_data[:, :, 0])
@@ -195,6 +199,9 @@ def pre_processing_no_tta(img_data, model_image_size):
 
 
 def pre_processing(img_data, model_image_size):
+    for z in range(img_data.shape[2]):
+        low, high = np.percentile(img_data[:, :, z], (1, 99))
+        img_data[:, :, z] = _contrast(img_data[:, :, z], low, high)
     original_x, original_y = img_data[:, :, 0].shape
     min_ax = min(original_y, original_x)
     zeros = np.zeros_like(img_data[:, :, 0])

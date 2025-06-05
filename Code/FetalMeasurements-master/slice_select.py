@@ -12,39 +12,23 @@ from matplotlib.backends.backend_pdf import PdfPages
 import pandas as pd
 import os
 import numpy as np
-#from fetal_segmentation.slice_selection.model import SliceSelectionModel  # or wherever the model class is
-
 
 from matplotlib import pyplot as plt
 
 
 class SliceSelect(object):
     def __init__(self, model_file, cuda_id=0, basemodel='ResNet34'):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        model_file = os.path.join(current_dir, "..", "..", "Models", "Sliceselect", "22_model_bbd")
-        #model_file = r"\\fmri-df4\projects\Mammilary_Bodies\BrainBiometry-IJCARS-Netanell\Models\Sliceselect\22_model_bbd"
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        #model = torch.load(model_file, map_location=device)
-        state_dict = torch.load(model_file, map_location=torch.device('cpu'))
-        
-        self.device = device  # Ensure device is saved for future use
-
+        print("model file: ", model_file)
+        model = torch.load(model_file)
         if basemodel == 'ResNet34':
             model_ft = models.resnet34(pretrained=True)
         elif basemodel == 'ResNet50':
             model_ft = models.resnet50(pretrained=True)
         num_ftrs = model_ft.fc.in_features
         model_ft.fc = torch.nn.Linear(num_ftrs, 2)
-        model_ft.load_state_dict(state_dict)
-        if torch.cuda.is_available():
-            print(f"[INFO] Setting CUDA device to {cuda_id}")
-            torch.cuda.set_device(cuda_id)
-        else:
-            print("[INFO] CUDA not available — running on CPU")
-
-        #device = torch.device("cuda:" + str(cuda_id))
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        model_ft.load_state_dict(model)
+        torch.cuda.set_device(cuda_id)
+        device = torch.device("cuda:" + str(cuda_id))
         self.model = model_ft.to(device)
 
         self.transform = pytorch_tfs.Compose([
@@ -62,9 +46,9 @@ class SliceSelect(object):
         ])
         self.device = device
 
-    def _visualize_model(self, data_elem, visualize=False, out_dir='./Pdfs/'):
-        device=self.device
+    def _visualize_model(self, data_elem, device, visualize=False, out_dir='./Pdfs/'):
         model = self.model
+        print("device: ", device)
         class_names = ['no', 'yes']
         was_training = model.training
         model.eval()
@@ -81,7 +65,21 @@ class SliceSelect(object):
             x = x.reshape((x.shape[0], *(x.shape[1:])))
 
             inputs = x.to(device)
+            print("inputs inside visulaize: ", inputs)
             labels = y.to(device)
+            orig_fname = os.path.basename(data_elem['filename'])
+            # ✅ Save preprocessed slices being fed into the model
+            slice_dir = os.path.join(out_dir, "slice_debug", orig_fname)
+            os.makedirs(slice_dir, exist_ok=True)
+            for j in range(inputs.size(0)):
+                img = inputs[j].cpu().numpy().transpose((1, 2, 0))[:, :, 1]  # Shape: H x W
+                img = img - np.min(img)
+                img = img / (np.max(img) - np.min(img) + 1e-5)  # Normalize for visibility
+                plt.imshow(img, cmap='gray')
+                plt.axis('off')
+                plt.title(f"Slice {j}")
+                plt.savefig(os.path.join(slice_dir, f"slice_{j:02d}.png"))
+                plt.close()
 
             outputs = model(inputs)
             _, preds = torch.max(outputs, 1)
@@ -89,7 +87,6 @@ class SliceSelect(object):
             outputs_sfmax = torch.nn.functional.softmax(outputs, dim=1)
 
             values, indices = outputs_sfmax[:, 1].max(0)
-            orig_fname = os.path.basename(data_elem['filename'])
             if visualize:
 
                 dest_pdf = os.path.join(out_dir, orig_fname + '.pdf')
@@ -162,7 +159,7 @@ class SliceSelect(object):
                             seg_elem=seg_file,
                             selection=-1,
                             transform=self.transform)
-        return self._visualize_model(elem(), visualize=visualize)
+        return self._visualize_model(elem(), device=self.device, visualize=visualize)
 
     def get_cropped_elem(self, img_file, seg_file):
         elem = NiftiElement(nii_elem=img_file,

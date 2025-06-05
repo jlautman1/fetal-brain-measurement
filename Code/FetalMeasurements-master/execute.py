@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 import os
 import json
 import glob
+import tensorflow as tf
 
 from SubSegmentation.lovasz import *
 from SubSegmentation.processing_utils import *
@@ -32,7 +33,6 @@ def load_model():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-    import tensorflow as tf
     #config = tf.ConfigProto()
     #config.gpu_options.allow_growth=True
     #sess = tf.Session(config=config)
@@ -58,6 +58,7 @@ if __name__ == "__main__":
     else:
         raise ValueError('Missing input dir or files')
 
+    print("in execute file - loading model - ")
     fm = load_model()
     print("infiles are : ", infiles)
     for a in infiles:
@@ -65,8 +66,10 @@ if __name__ == "__main__":
         print("a is: ", a)
         print("args.outputdir: ", args.outputdir)
         print("os.path.basename(a): ", os.path.basename(a))
+        out_base = os.path.splitext(os.path.splitext(os.path.basename(a))[0])[0]
+        out_dir = os.path.join(args.outputdir, out_base)
         try:
-            fm.execute(a, out_dir=os.path.join(args.outputdir, os.path.basename(a)))
+            fm.execute(a, out_dir)
         except Exception:
             print ('Error in file:', a)
             print(traceback.format_exc())

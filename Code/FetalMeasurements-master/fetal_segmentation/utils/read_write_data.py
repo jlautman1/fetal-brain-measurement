@@ -6,16 +6,41 @@ import ntpath
 from shutil import copyfile
 
 
-
 def save_nifti(data, path):
     nifti = get_image(data)
     nib.save(nifti, path)
 
+def save_nifti_pred(data, out_path, reference_img_path):
+    """
+    Save a prediction volume so it lines-up with the original scan.
+
+    Parameters
+    ----------
+    data : np.ndarray            # your label / probability map
+    out_path : str               # where to write the .nii.gz
+    reference_img_path : str     # the *source* anatomical image
+    """
+    ref   = nib.load(reference_img_path)
+    hdr   = ref.header.copy()
+
+    # Make sure the datatype is something tiny (labels → uint8 or int16)
+    hdr.set_data_dtype(np.uint8 if data.max() < 256 else np.int16)
+
+    # Copy spatial information
+    code = int(ref.header.get('sform_code', 1))
+    hdr.set_sform(ref.affine, code=code or 1)
+    hdr.set_qform(ref.affine, code=int(ref.header.get('qform_code', 1)))
+
+    # (optional but nice – lets viewers scale the overlay colours properly)
+    hdr['cal_min'] = 0
+    hdr['cal_max'] = data.max()
+
+    out_img = nib.Nifti1Image(np.asarray(data), ref.affine, hdr)
+    nib.save(out_img, out_path)
+
 
 def read_img(in_file):
-    print("Reading: {0}".format(in_file))
     image = nib.load(os.path.abspath(in_file))
-    print("finished reading, returning image: ", image)
     return image
 
 def get_image(data, affine=None, nib_class=nib.Nifti1Image):
