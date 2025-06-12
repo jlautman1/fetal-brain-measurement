@@ -393,7 +393,9 @@ def BBD_points(orig_img, CBD_left, CBD_right, mid_up, mid_down, resX, resY, plot
     return BBD, BBD_left, BBD_right, BBD_val
 
 def checkangle(x, y, eps=13):
-    return (np.abs(x - y) < eps) | (np.abs((180 - (x - y))) < eps)
+    diff = abs(x - y) % 180
+    diff = min(diff, 180 - diff)
+    return diff < eps
 
 
 def find_max_in_hull(hull, points):
@@ -414,11 +416,18 @@ def measure_and_show_cerebellum(cerebellum, res_px, plot=False, overlay=None, im
     # cerebellum = find_cerebellum(overlay)
     xxx = np.where(cerebellum != 0)
     points = np.array([xxx[1], xxx[0]]).T
+    #print(f"[DEBUG] Non-zero cerebellum points found: {points.shape[0]}")
+
     if points.shape[0] < 5:
         print("Skip")
+        #print("[DEBUG] Too few points for convex hull — skipping.")
         return
     hull = ConvexHull(points)
-
+    # try:
+    #     hull = ConvexHull(points)
+    # except Exception as e:
+    #     print(f"[ERROR] Failed to compute convex hull: {e}")
+    #     return
     if plot:
         plt.imshow(img, cmap='gray')
         plt.imshow(overlay, alpha=.2, cmap="PuBu")
@@ -428,6 +437,7 @@ def measure_and_show_cerebellum(cerebellum, res_px, plot=False, overlay=None, im
 
     pt_hull = find_max_in_hull(hull, points)
     pt_hull = (pt_hull.T[0], pt_hull.T[1])
+    #print(f"[DEBUG] Hull endpoints for TCD: {pt_hull}")
 
     box = cv2.minAreaRect(np.int0(points))
     box = cv2.boxPoints(box)
@@ -443,32 +453,54 @@ def measure_and_show_cerebellum(cerebellum, res_px, plot=False, overlay=None, im
         plt.plot(pt_hull[0], pt_hull[1], 'b-')
         plt.plot(pt_box1[0], pt_box1[1], 'g-')
         plt.plot(pt_box2[0], pt_box2[1], 'r-')
+        # print(f"[DEBUG] Hull points: {pt_hull}")
+        # print(f"[DEBUG] Box1 points: {pt_box1}")
+        # print(f"[DEBUG] Box2 points: {pt_box2}")
+        # print(f"[DEBUG] pt_angle = {pt_angle}")
+
+        # for i, (p1, p2) in enumerate(([0, 1], [0, 2])):
+        #     print(f"[DEBUG] Pair {i}: angle diff = {abs(pt_angle[p1] - pt_angle[p2])}, checkangle = {checkangle(pt_angle[p1], pt_angle[p2])}")
 
     pt_all = pt_hull, pt_box1, pt_box2
     pt_angle = []
     for pt in pt_all:
         pt_angle.append(np.rad2deg(np.arctan2((pt[1][1] - pt[1][0]), (pt[0][1] - pt[0][0]))))
+    # print(f"[DEBUG] Angles (hull, box1, box2): {pt_angle}")
+
+    # print(f"[DEBUG] Hull points: {pt_hull}")
+    # print(f"[DEBUG] Box1 points: {pt_box1}")
+    # print(f"[DEBUG] Box2 points: {pt_box2}")
+    # print(f"[DEBUG] pt_angle = {pt_angle}")
+
+    # for i, (p1, p2) in enumerate(([0, 1], [0, 2])):
+    #     print(f"[DEBUG] Pair {i}: angle diff = {abs(pt_angle[p1] - pt_angle[p2])}, checkangle = {checkangle(pt_angle[p1], pt_angle[p2])}")
 
     for pair in ([0, 1], [0, 2]):
         pt_hull, pt_box = pt_all[pair[0]], pt_all[pair[1]]
         pt_hull_p = np.array(pt_hull).T[::-1, ::-1]
         tcd_meas = distance.euclidean(pt_hull_p[0], pt_hull_p[1]) * res_px
-        if checkangle(pt_angle[pair[0]], pt_angle[pair[1]]):
+        angle_ok = checkangle(pt_angle[pair[0]], pt_angle[pair[1]])
+        #print(f"[DEBUG] Pair {pair}: TCD={tcd_meas:.2f} mm, angle match={angle_ok}")
+        if angle_ok:
             return pt_hull_p, tcd_meas, True
+    #print("[DEBUG] No valid angle alignment found — TCD marked as invalid.")
     return pt_hull_p, tcd_meas, False
 
 
 def TCD_points(subseg_img, mid_up, mid_down, resX, resY, plot=False):
     mid_line_brain, m_MSL_x, m_MSL_y = mid_line_Brain(subseg_img, mid_up, mid_down)
+    #print(f"[DEBUG] mid_line_brain has {mid_line_brain.shape[0]} points")
 
     TCD_length = np.zeros((mid_line_brain.shape[0]))
     for i in range(mid_line_brain.shape[0] - 1):
         TCD_length[i], _, _ = perpendicular_line(mid_line_brain[i], subseg_img, mid_down, m_MSL_y, m_MSL_x, resX, resY)
 
     if mid_line_brain.shape[0]==0:
+        #print("[DEBUG] No mid-line points found — returning invalid TCD")
         return None, None, None, False
 
     TCD_pts, TCD, TCD_valid = measure_and_show_cerebellum(subseg_img, resX, plot, subseg_img, subseg_img)
+    #print(f"[DEBUG] TCD = {TCD}, TCD_pts = {TCD_pts}, Valid = {TCD_valid}")
     return TCD, TCD_pts[0], TCD_pts[1], TCD_valid
 
 def load_nii(Data, index, DIR):

@@ -36,15 +36,15 @@ class BrainSegmentationModel(object):
             model_name += '.pkl'
         print("model path + model name:",model_path, model_name)
         learner_path = os.path.join(model_path, model_name)
-        print(f"[DEBUG] Trying to load model from: {learner_path}")
+        #print(f"[DEBUG] Trying to load model from: {learner_path}")
         try:
             learn = load_learner(model_path, file=model_name)
             if torch.cuda.is_available():
                 learn.model.to(torch.device('cuda'))
-                print("[DEBUG] Model loaded on GPU.")
+                #print("[DEBUG] Model loaded on GPU.")
             else:
                 learn.model.to(torch.device('cpu'))
-                print("[DEBUG] Model loaded on CPU.")
+                #print("[DEBUG] Model loaded on CPU.")
             self.model = learn
         except Exception as e:
             print(f"[ERROR] Failed to load learner from {learner_path}")
