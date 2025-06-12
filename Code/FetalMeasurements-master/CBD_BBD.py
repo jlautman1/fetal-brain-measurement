@@ -180,8 +180,8 @@ def mid_line_Brain(seg_img, MSL_up, MSL_down, plot=False):
 
 def perpendicular_line(mid_line_brain, seg_img, MSL_down, m_MSL_y, m_MSL_x, resX, resY):
     roi_width = int(seg_img.shape[0] / 3)
-    temp_CBD_left = np.zeros((2), dtype=np.int)
-    temp_CBD_right = np.zeros((2), dtype=np.int)
+    temp_CBD_left = np.zeros((2), dtype=int)
+    temp_CBD_right = np.zeros((2), dtype=int)
     m_perp_x = -m_MSL_y
     m_perp_y = m_MSL_x
 
@@ -283,7 +283,10 @@ def CBD_points(seg_img, mid_up, mid_down, resX, resY, CBD_min_th):
 
     cv2.line(RGB_img3, (CBD_left[1], CBD_left[0]), (CBD_right[1], CBD_right[0]), (255, 0, 0), 1)
     cv2.line(RGB_img3, (mid_up[1], mid_up[0]), (mid_down[1], mid_down[0]), (255, 0, 0), 1)
-    cv2.imshow("CBD", RGB_img3)
+    #showing it didn't work, saving it instead:
+    #cv2.imshow("CBD", RGB_img3)
+    cv2.imwrite("/workspace/output/debug_cbd.png", RGB_img3)
+
 
     return CBD, CBD_left, CBD_right
 
@@ -291,8 +294,8 @@ def profile_BBD(orig_img,rr_left, cc_left, rr_right, cc_right, BBD_left_line, BB
 
     profile_extrema_left = []
     profile_extrema_right = []
-    BBD_left = np.zeros((2), dtype=np.int)
-    BBD_right = np.zeros((2), dtype=np.int)
+    BBD_left = np.zeros((2), dtype=int)
+    BBD_right = np.zeros((2), dtype=int)
 
 
     if plot:
@@ -351,8 +354,8 @@ def BBD_points(orig_img, CBD_left, CBD_right, mid_up, mid_down, resX, resY, plot
     max_img = np.max(orig_img)
     crop_img_clahe = skimage.exposure.equalize_adapthist(orig_img / max_img, kernel_size=(20, 20), clip_limit=0.01, nbins=256) * max_img
 
-    BBD_left = np.zeros((2), dtype=np.int)
-    BBD_right = np.zeros((2), dtype=np.int)
+    BBD_left = np.zeros((2), dtype=int)
+    BBD_right = np.zeros((2), dtype=int)
 
     m_MSL_x, m_MSL_y = slop_of_line(mid_up, mid_down)
     m_BBD_x = -m_MSL_y

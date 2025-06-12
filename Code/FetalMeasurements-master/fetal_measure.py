@@ -2,6 +2,7 @@ from os.path import join
 import numpy as np
 import nibabel as nib
 import torch
+import builtins
 import sys
 sys.path.append('/workspace/fetal-brain-measurement/Code/FetalMeasurements-master/SubSegmentation')
 import gzip
@@ -27,11 +28,18 @@ import msl
 
 import re
 
+# class NumpyEncoder(json.JSONEncoder):
+#     def default(self, obj):
+#         if isinstance(obj, np.ndarray):
+#             return obj.tolist()
+#         return json.JSONEncoder.default(self, obj)
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
+        elif isinstance(obj, np.generic):  # catches np.bool_, np.int_, etc.
+            return obj.item()
+        return super().default(obj)
 
 #FD_RE = re.compile(
 #            "Pat(?P<patient_id>[\d]+)_Se(?P<series>[\d]+)_Res(?P<res_x>[\d.]+)_(?P<res_y>[\d.]+)_Spac(?P<res_z>[\d.]+).nii")
@@ -233,7 +241,7 @@ class FetalMeasure(object):
         
         data_cropped = data_cropped.transpose([1, 2, 0])
         fullseg = fullseg.transpose([1, 2, 0])
-        print("🧪 DEBUG: real subseg input stats")
+        #print("🧪 DEBUG: real subseg input stats")
         print("↳ shape:", data_cropped.shape)
         print("↳ dtype:", data_cropped.dtype)
         print("↳ min/max:", data_cropped.min(), data_cropped.max())
@@ -265,12 +273,12 @@ class FetalMeasure(object):
         if np.max(subseg) == 0:
             print(f"[ERROR] Subsegmentation failed for {in_img_file}. Skipping.")
             #return metadata
-        print("LOOOOOOOOOOOOOOOOOK4 seems good subseg") #REMOVE LATER 
+        #print("LOOOOOOOOOOOOOOOOOK4 seems good subseg") #REMOVE LATER 
         # Fourth stage - MSL
         msl_p_planes = msl.find_planes(data_cropped, subseg)
         msl_p_points = msl.findMSLforAllPlanes(data_cropped, subseg, msl_p_planes)
-        print("LOOOOOOOOOOOOOOOOOK ",msl_p_planes) #REMOVE LATER 
-        print("LOOOOOOOOOOOOOOOOOK2 ",msl_p_points) #REMOVE LATER 
+        #print("LOOOOOOOOOOOOOOOOOK ",msl_p_planes) #REMOVE LATER 
+        #print("LOOOOOOOOOOOOOOOOOK2 ",msl_p_points) #REMOVE LATER 
         #print(msl.__file__) I checked it and it is imported properly
 
         metadata["msl_planes"] = msl_p_planes
@@ -328,9 +336,21 @@ class FetalMeasure(object):
 
         metadata["brain_vol_voxels"] = float(np.sum(fullseg > .5))
         metadata["brain_vol_mm3"] = float(np.sum(fullseg > .5) * res_x * res_y * res_z)
+        # Build a short summary based on metadata
+        summary = {
+            "brain_volume_mm3": builtins.round(float(metadata["brain_vol_mm3"])),
+            "CBD (mm)": builtins.round(float(metadata.get("cbd_measure_mm", 0))),
+            "BBD (mm)": builtins.round(float(metadata.get("bbd_measure_mm", 0))),
+            "TCD (mm)": builtins.round(float(metadata.get("tcd_measure_mm", 0))),
+            "TCD valid": bool(metadata.get("tcd_valid", False)),
+            "BBD valid": bool(metadata.get("bbd_valid", False)),
+            "Volume path": metadata["InFile"]
+        }
 
+        # Append summary to metadata
+        metadata["summary"] = summary
         # Dump metadata
-        with open(os.path.normpath(os.path.join(out_dir, 'data.json'), 'w')) as fp:
-            json.dump(metadata, fp, cls=NumpyEncoder)
+        with open(os.path.normpath(os.path.join(out_dir, 'data.json')), 'w') as fp:
+            json.dump(metadata, fp, cls=NumpyEncoder,indent=4)
 
         return metadata

@@ -51,7 +51,7 @@ def secondary_prediction(mask, vol, config2, model2,
     data = vol[bbox_start[0]:bbox_end[0],
                bbox_start[1]:bbox_end[1],
                bbox_start[2]:bbox_end[2]]
-    nib.save(nib.Nifti1Image(data, np.eye(4)), "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_secondary_input_patch.nii.gz")
+    #nib.save(nib.Nifti1Image(data, np.eye(4)), "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_secondary_input_patch.nii.gz")
 
     data = preproc_and_norm(data, preprocess_method2, norm_params2)
 
@@ -77,13 +77,13 @@ def secondary_prediction(mask, vol, config2, model2,
         bbox_start[2]:bbox_end[2]
     ] = binary_prediction.astype(np.uint8)
 
-    # Save debug cropped prediction
-    nib.save(nib.Nifti1Image(binary_prediction.astype(np.uint8), np.eye(4)), 
-            "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_pred_roi_bin.nii.gz")
+    # # Save debug cropped prediction
+    # nib.save(nib.Nifti1Image(binary_prediction.astype(np.uint8), np.eye(4)), 
+    #         "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_pred_roi_bin.nii.gz")
 
-    # Save debug full prediction
-    nib.save(nib.Nifti1Image(full_prediction.astype(np.uint8), np.eye(4)), 
-            "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_full_secondary.nii.gz")
+    # # Save debug full prediction
+    # nib.save(nib.Nifti1Image(full_prediction.astype(np.uint8), np.eye(4)), 
+    #         "./fetal-brain-measurement/output/Pat172_Se12_Res0.7813_0.7813_Spac3.0/debug_full_secondary.nii.gz")
 
     return full_prediction
 

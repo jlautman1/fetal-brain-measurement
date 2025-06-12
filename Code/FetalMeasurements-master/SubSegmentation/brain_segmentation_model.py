@@ -60,13 +60,13 @@ class BrainSegmentationModel(object):
             self._predict_no_tta(nifti_fdata, dest_filename)
 
     def _predict_with_tta(self, nifti_fdata, dest_filename):
-        print("pre pre processing")
+        #print("pre pre processing")
         images, min_ax, zeros, x_ax, y_ax = pre_processing(nifti_fdata, self.image_size)
-        print("🧪 DEBUG: Checking TTA input...")
+        #print("🧪 DEBUG: Checking TTA input...")
         for i, aug in enumerate(images):
             stats = torch.cat([t.data.view(-1) for t in aug])
-            print(f"   ➤ Aug {i}: min={stats.min():.3f}, max={stats.max():.3f}, mean={stats.mean():.3f}")
-        print("post pre processing")
+            #print(f"   ➤ Aug {i}: min={stats.min():.3f}, max={stats.max():.3f}, mean={stats.mean():.3f}")
+        #print("post pre processing")
         rotations_results = []
         for rotated_images in images:
             rotated_result = []
@@ -76,15 +76,15 @@ class BrainSegmentationModel(object):
                 #print("   🔹 outputs min/max:", outputs.min(), outputs.max())
                 #print("🔍 pred_idx unique values:", np.unique(pred_idx.data.numpy()))
                 rotated_result.append(pred_idx.data.squeeze())
-                if len(rotated_result) == 1:
-                    print("Intermediate prediction unique values:", np.unique(rotated_result[0]))
+                #if len(rotated_result) == 1:
+                    #print("Intermediate prediction unique values:", np.unique(rotated_result[0]))
             rotations_results.append(rotated_result)
-        print("after for loop in with tta ")
+        #print("after for loop in with tta ")
         # Count label distribution per rotated result
         for i, rot in enumerate(rotations_results):
             flat = np.concatenate([r.flatten() for r in rot])
             classes, counts = np.unique(flat, return_counts=True)
-            print(f"   🧮 Rotation {i}: label counts = {dict(zip(classes, counts))}")
+            #print(f"   🧮 Rotation {i}: label counts = {dict(zip(classes, counts))}")
 
         segmentations_result = majority_vote(rotations_results)
         print("after majority vote in with tta ")

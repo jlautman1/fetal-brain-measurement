@@ -20,23 +20,25 @@ def find_planes(sub_img, sub_seg, visualize=False):
         #print("printing the cur_plane_seg: ", cur_plane_seg)
         #print("printing the cur_plane_img: ", cur_plane_img)
         # Seperate to two hemispheres
-        right_pts = np.array(np.where(cur_plane_seg == RIGHT_HEMI)).T
-        left_pts = np.array(np.where(cur_plane_seg == LEFT_HEMI)).T
+        # right_pts = np.array(np.where(cur_plane_seg == RIGHT_HEMI)).T
+        # left_pts = np.array(np.where(cur_plane_seg == LEFT_HEMI)).T
+        right_pts = np.array(np.where(cur_plane_seg == 1.)).T
+        left_pts = np.array(np.where(cur_plane_seg == 3.)).T
         #print("printing the right_pts: ", right_pts)
-       # print("printing the left_pts: ", left_pts)
-        #right_pts = np.array(np.where(cur_plane_seg == 1.)).T
-        #left_pts = np.array(np.where(cur_plane_seg == 3.)).T
+        #print("printing the left_pts: ", left_pts)
+
 
         print(f"[SLICE {i}] found R={len(right_pts)} L={len(left_pts)}") #DEBUG
 
         # If no points of hemisphere, skip
         if len(left_pts) <= 0 or len(right_pts) <= 0:
+            print("#####################one of the points are <0 - left points: ", len(left_pts),len(right_pts))
             continue
 
         # Create SVM between two hemispheres
         X = np.concatenate([right_pts, left_pts])
         Y = np.array(np.concatenate([[0, ] * len(right_pts), [1, ] * len(left_pts)]))
-        clf = svm.SVC(kernel='linear', C=10, tol=1e-1, max_iter=1e8)
+        clf = svm.SVC(kernel='linear', C=10, tol=1e-1, max_iter=int(1e8))
         clf.fit(X, Y)
 
         # Calculate line parameters

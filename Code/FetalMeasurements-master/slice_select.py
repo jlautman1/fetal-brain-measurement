@@ -65,7 +65,7 @@ class SliceSelect(object):
             x = x.reshape((x.shape[0], *(x.shape[1:])))
 
             inputs = x.to(device)
-            print("inputs inside visulaize: ", inputs)
+            #print("inputs inside visulaize: ", inputs)
             labels = y.to(device)
             orig_fname = os.path.basename(data_elem['filename'])
             # ✅ Save preprocessed slices being fed into the model

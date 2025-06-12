@@ -135,7 +135,7 @@ class FetalSegmentation(object):
         mask = postprocess_prediction(prediction, threshold=0.5)
         print(f"✅ Mask shape: {mask.shape}, unique values: {np.unique(mask)}")
         print("📸 Saving debug plots...")
-        save_debug_outputs(data, prediction, mask, out_dir=output_path, label="get_prediction")
+        #save_debug_outputs(data, prediction, mask, out_dir=output_path, label="get_prediction")
         print("🛑 moving to predict_all:")
 
         if self._config2 is not None:
@@ -160,13 +160,13 @@ class FetalSegmentation(object):
             prediction_binarized = swap_to_original_axis(swap_axis, prediction_binarized)
             print(f"↩ Swapped back final binary prediction. Shape: {prediction_binarized.shape}, unique: {np.unique(prediction_binarized)}")
             # 🧪 Save debug plots for secondary prediction
-            save_debug_outputs(
-                data=nifti_data,  # original input before axis move
-                prediction=prediction,
-                mask=prediction_binarized,
-                out_dir=output_path,
-                label="secondary_prediction"
-            )
+            # save_debug_outputs(
+            #     data=nifti_data,  # original input before axis move
+            #     prediction=prediction,
+            #     mask=prediction_binarized,
+            #     out_dir=output_path,
+            #     label="secondary_prediction"
+            # )
             final_pred_path = os.path.join(output_path, 'prediction.nii.gz')
             print(f"💾 Saving final prediction to: {final_pred_path}")
             save_nifti_pred(np.int16(prediction_binarized), final_pred_path, reference_img_path=in_file)
@@ -182,39 +182,39 @@ class FetalSegmentation(object):
            
         print('📝 Saving complete to {}'.format(output_path))
         print('✅ Prediction process finished.')
+# optional funcion for saving outputs in the way for debuggin
+# def save_debug_outputs(data, prediction, mask, out_dir="debug", label=""):
+#     os.makedirs(out_dir, exist_ok=True)
 
-def save_debug_outputs(data, prediction, mask, out_dir="debug", label=""):
-    os.makedirs(out_dir, exist_ok=True)
+#     suffix = f"_{label}" if label else ""
 
-    suffix = f"_{label}" if label else ""
+#     # # Save middle slice of input volume
+#     # mid_input = data[:, :, data.shape[2] // 2]
+#     # plt.figure(figsize=(8, 6))
+#     # plt.imshow(mid_input, cmap='gray')
+#     # plt.title(f"Middle Slice of Input Volume{suffix}")
+#     # input_path = os.path.join(out_dir, f"input_middle_slice{suffix}.png")
+#     # plt.savefig(input_path)
+#     # plt.close()
 
-    # # Save middle slice of input volume
-    # mid_input = data[:, :, data.shape[2] // 2]
-    # plt.figure(figsize=(8, 6))
-    # plt.imshow(mid_input, cmap='gray')
-    # plt.title(f"Middle Slice of Input Volume{suffix}")
-    # input_path = os.path.join(out_dir, f"input_middle_slice{suffix}.png")
-    # plt.savefig(input_path)
-    # plt.close()
-
-    # Save middle slice of raw prediction
-    mid_pred = prediction[:, :, prediction.shape[2] // 2]
-    plt.figure(figsize=(8, 6))
-    plt.imshow(mid_pred, cmap='gray')
-    plt.title(f"Middle Slice of Raw Prediction{suffix}")
-    pred_path = os.path.join(out_dir, f"prediction_middle_slice{suffix}.png")
-    plt.savefig(pred_path)
-    plt.close()
+#     # Save middle slice of raw prediction
+#     mid_pred = prediction[:, :, prediction.shape[2] // 2]
+#     plt.figure(figsize=(8, 6))
+#     plt.imshow(mid_pred, cmap='gray')
+#     plt.title(f"Middle Slice of Raw Prediction{suffix}")
+#     pred_path = os.path.join(out_dir, f"prediction_middle_slice{suffix}.png")
+#     plt.savefig(pred_path)
+#     plt.close()
 
    
 
-    # Save middle slice of binary mask
-    mid_mask = mask[:, :, mask.shape[2] // 2]
-    plt.figure(figsize=(8, 6))
-    plt.imshow(mid_mask, cmap='gray')
-    plt.title(f"Middle Slice of Binary Mask{suffix}")
-    mask_path = os.path.join(out_dir, f"mask_middle_slice{suffix}.png")
-    plt.savefig(mask_path)
-    plt.close()
+#     # Save middle slice of binary mask
+#     mid_mask = mask[:, :, mask.shape[2] // 2]
+#     plt.figure(figsize=(8, 6))
+#     plt.imshow(mid_mask, cmap='gray')
+#     plt.title(f"Middle Slice of Binary Mask{suffix}")
+#     mask_path = os.path.join(out_dir, f"mask_middle_slice{suffix}.png")
+#     plt.savefig(mask_path)
+#     plt.close()
 
-    return pred_path, mask_path
+#     return pred_path, mask_path
