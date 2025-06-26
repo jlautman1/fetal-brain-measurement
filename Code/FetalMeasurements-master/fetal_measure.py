@@ -19,6 +19,7 @@ import matplotlib.gridspec as gridspec
 import os
 import json
 import textwrap
+import pandas as pd
 import fetal_seg
 from SubSegmentation.lovasz import *
 from SubSegmentation.processing_utils import *
@@ -56,12 +57,14 @@ class FetalMeasure(object):
                  braigseg_seg_model="24-seg",
                  subseg_model='model-tfms.pkl',
                  sliceselect_bbd_model="23_model_bbd",
-                 sliceselect_tcd_model="24_model_tcd"):
+                 sliceselect_tcd_model="24_model_tcd",
+                 normative_csv='fetal-brain-measurement/Code/FetalMeasurements-master/Normative.csv'):
         self.fetal_seg = fetal_seg.FetalSegmentation(
             os.path.normpath(os.path.join(basedir, "Brainseg", "22-ROI")), None,
             os.path.normpath(os.path.join(basedir, "Brainseg", "24-seg")), None)
         print("model1 path: ", self.fetal_seg._model_path)
         print("model2 path: ", self.fetal_seg._model2_path)
+        self.norm_df = pd.read_csv(normative_csv)
         #self.subseg_learner = load_learner(os.path.join(basedir, "Subseg"), subseg_model)
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         #self.subseg = BrainSegmentationModel(
@@ -336,7 +339,13 @@ class FetalMeasure(object):
             tcd = np.stack([TCD_left, TCD_right]).T
             plt.plot(tcd[1, :], tcd[0, :], 'k-')
             plt.savefig( os.path.normpath(os.path.join(out_dir, "tcd.png")))
+        
+        def predict_ga(val, col):
+            return float(np.interp(val, self.norm_df[f'{col}_mean'], self.norm_df.week))
 
+        metadata["pred_ga_cbd"] = predict_ga(metadata["cbd_measure_mm"], 'cbd')
+        metadata["pred_ga_bbd"] = predict_ga(metadata["bbd_measure_mm"], 'bbd')
+        metadata["pred_ga_tcd"] = predict_ga(metadata["tcd_measure_mm"], 'tcd')
         # Brain Volume Calc
 
         metadata["brain_vol_voxels"] = float(np.sum(fullseg > .5))
@@ -358,57 +367,55 @@ class FetalMeasure(object):
         with open(os.path.normpath(os.path.join(out_dir, 'data.json')), 'w') as fp:
             json.dump(metadata, fp, cls=NumpyEncoder,indent=4)
 
-        # ---- begin PDF report generation (with header + footer) ----
-       
+        # ---- begin PDF report generation (with GA predictions inline) ----
 
         report_path = os.path.join(out_dir, 'report.pdf')
         with PdfPages(report_path) as pdf:
             fig = plt.figure(figsize=(8.5, 11))
-            # make header taller to give more space, bump hspace
             gs = gridspec.GridSpec(4, 2, figure=fig,
                                 height_ratios=[1.7, 3, 3, 3],
                                 hspace=1.0, wspace=0.3)
 
             # Header
-            ax_hdr = fig.add_subplot(gs[0, :])
-            ax_hdr.axis('off')
+            ax0 = fig.add_subplot(gs[0, :]); ax0.axis('off')
             pid = int(metadata['SubjectID'])
             ser = int(metadata['Series'])
             rx, ry, rz = metadata['Resolution']
-            ax_hdr.text(0.5, 0.80,
-                        f"Fetal brain measurements analysis for patient #{pid}",
-                        ha='center', va='center',
-                        fontsize=18, fontweight='bold')
-            ax_hdr.text(0.5, 0.50,
-                        f"Series: {ser}    Voxel size: {rx:.4g}×{ry:.4g}×{rz:.4g} mm",
-                        ha='center', va='center',
-                        fontsize=12)
+            ax0.text(0.5, 0.80,
+                    f"Fetal brain measurements analysis for patient #{pid}",
+                    ha='center', va='center',
+                    fontsize=18, fontweight='bold')
+            ax0.text(0.5, 0.50,
+                    f"Series: {ser}    Voxel size: {rx:.4g}×{ry:.4g}×{rz:.4g} mm",
+                    ha='center', va='center',
+                    fontsize=12)
 
-            # Row‐drawing helper
             def draw_row(r, imgfile, label):
-                im_ax = fig.add_subplot(gs[r, 0])
-                im_ax.imshow(plt.imread(os.path.join(out_dir, imgfile)))
-                im_ax.axis('off')
-
-                tx_ax = fig.add_subplot(gs[r, 1])
-                tx_ax.axis('off')
-                tx_ax.text(0, 0.5, label,
+                ax_im = fig.add_subplot(gs[r, 0])
+                ax_im.imshow(plt.imread(os.path.join(out_dir, imgfile)))
+                ax_im.axis('off')
+                ax_tx = fig.add_subplot(gs[r, 1])
+                ax_tx.axis('off')
+                ax_tx.text(0, 0.5, label,
                         ha='left', va='center',
                         fontsize=14, family='monospace')
 
-            # CBD (measured on the BBD slice)
+            # CBD row
             draw_row(1, 'cbd.png',
                     f"CBD (mm): {metadata['cbd_measure_mm']:.2f}\n"
+                    f"Pred GA: {metadata['pred_ga_cbd']:.1f} wk\n"
                     f"(slice #{metadata['BBD_selection']})")
 
-            # BBD
+            # BBD row
             draw_row(2, 'bbd.png',
                     f"BBD (mm): {metadata['bbd_measure_mm']:.2f}\n"
+                    f"Pred GA: {metadata['pred_ga_bbd']:.1f} wk\n"
                     f"(slice #{metadata['BBD_selection']})")
 
-            # TCD
+            # TCD row
             draw_row(3, 'tcd.png',
                     f"TCD (mm): {metadata['tcd_measure_mm']:.2f}\n"
+                    f"Pred GA: {metadata['pred_ga_tcd']:.1f} wk\n"
                     f"(slice #{metadata['TCD_selection']})")
 
             # Footer: only brain volume
