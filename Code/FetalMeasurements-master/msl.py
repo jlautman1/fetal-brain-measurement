@@ -11,6 +11,7 @@ LEFT_HEMI = 5
 def find_planes(sub_img, sub_seg, visualize=False):
     #print("printing the subseg: ", sub_seg)
     #print("printing the sub image: ", sub_img)
+    print("started MSL first")
 
     OUTPUT_PLANES = {}
     for i in range(sub_seg.shape[2]):
@@ -28,11 +29,11 @@ def find_planes(sub_img, sub_seg, visualize=False):
         #print("printing the left_pts: ", left_pts)
 
 
-        print(f"[SLICE {i}] found R={len(right_pts)} L={len(left_pts)}") #DEBUG
+        #print(f"[SLICE {i}] found R={len(right_pts)} L={len(left_pts)}") #DEBUG
 
         # If no points of hemisphere, skip
         if len(left_pts) <= 0 or len(right_pts) <= 0:
-            print("#####################one of the points are <0 - left points: ", len(left_pts),len(right_pts))
+            #print("#####################one of the points are <0 - left points: ", len(left_pts),len(right_pts))
             continue
 
         # Create SVM between two hemispheres
@@ -45,8 +46,8 @@ def find_planes(sub_img, sub_seg, visualize=False):
         a = -clf.coef_[0][0] / clf.coef_[0][1]
         b = -clf.intercept_ / clf.coef_[0][1]
         OUTPUT_PLANES[i] = (float(a), float(b), clf.coef_[0], clf.intercept_)
-
-        print (np.abs(np.linalg.norm(clf.coef_[0])))
+        #print("moving to visualize if needed: ", visualize)
+        #print (np.abs(np.linalg.norm(clf.coef_[0])))
         # Visualize if needed
         if visualize:
             plt.figure()
@@ -69,13 +70,22 @@ def find_planes(sub_img, sub_seg, visualize=False):
             ax.contour(XX, YY, Z, colors='k', levels=[-1, 0, 1], alpha=0.5,
                        linestyles=['--', '-', '--'])
             plt.show()
+        print("finished for i: ", i)
+    print("finished MSL first")
     return OUTPUT_PLANES
 
 
 def determine_sides(subseg_plane, w, b_svm,  visualize=False):
     # All code assumes segmentation in centralized
-    a = float(-w[0] / w[1])
-    b = float(-b_svm / w[1])
+    #print("w[1]: ", w[1])    
+    if w[1]!=0:
+        #print("w[1] is zero")
+        a = float(-w[0] / w[1])
+        b = float(-b_svm / w[1])
+    else: 
+        #print("w[1] is not zero")
+        a = float(-w[0])
+        b = float(-b_svm)
 
     # Split to cases
     W, H = subseg_plane.shape
@@ -152,6 +162,7 @@ def determine_sides(subseg_plane, w, b_svm,  visualize=False):
 
 
 def findMSLforAllPlanes(img, subseg, planes_dict, visualize=False):
+    print("starting findMSLforAllPlanes")
     PLANES_MSL = {}
     valid_up_pts = None
     valid_down_pts = None
@@ -182,5 +193,5 @@ def findMSLforAllPlanes(img, subseg, planes_dict, visualize=False):
             PLANES_MSL[i] = pt_1, pt_0, True
         else:
             PLANES_MSL[i] = pt_0, pt_1, True
-
+    print("finished findMSLforAllPlanes")
     return PLANES_MSL

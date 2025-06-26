@@ -6,7 +6,8 @@ import builtins
 import sys
 sys.path.append('/workspace/fetal-brain-measurement/Code/FetalMeasurements-master/SubSegmentation')
 import gzip
-
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.pyplot as plt
 from lovasz import lovasz_softmax
 from processing_utils import acc_no_bg
 
@@ -14,8 +15,10 @@ from fastai.basic_train import load_learner
 
 #learn = load_learner(model_path, model_name)
 from matplotlib import pyplot as plt
+import matplotlib.gridspec as gridspec
 import os
 import json
+import textwrap
 import fetal_seg
 from SubSegmentation.lovasz import *
 from SubSegmentation.processing_utils import *
@@ -275,12 +278,14 @@ class FetalMeasure(object):
             #return metadata
         #print("LOOOOOOOOOOOOOOOOOK4 seems good subseg") #REMOVE LATER 
         # Fourth stage - MSL
+        print("before MSL")
         msl_p_planes = msl.find_planes(data_cropped, subseg)
+        print("middle of MSL")
         msl_p_points = msl.findMSLforAllPlanes(data_cropped, subseg, msl_p_planes)
         #print("LOOOOOOOOOOOOOOOOOK ",msl_p_planes) #REMOVE LATER 
         #print("LOOOOOOOOOOOOOOOOOK2 ",msl_p_points) #REMOVE LATER 
         #print(msl.__file__) I checked it and it is imported properly
-
+        print("after MSL")
         metadata["msl_planes"] = msl_p_planes
         metadata["msl_points"] = msl_p_points
 
@@ -306,7 +311,7 @@ class FetalMeasure(object):
         metadata["bbd_measure_mm"] = BBD_measure
         metadata["bbd_valid"] = BBD_valid
 
-        print(np.linalg.norm(CBD_left - CBD_right) * res_x, np.linalg.norm(BBD_left - BBD_right) * res_x)
+        #print(np.linalg.norm(CBD_left - CBD_right) * res_x, np.linalg.norm(BBD_left - BBD_right) * res_x)
         plt.figure()
         plt.imshow(data_cropped[:, :, sl_bbd_slice])
         cbd = np.stack([CBD_left, CBD_right]).T
@@ -352,5 +357,68 @@ class FetalMeasure(object):
         # Dump metadata
         with open(os.path.normpath(os.path.join(out_dir, 'data.json')), 'w') as fp:
             json.dump(metadata, fp, cls=NumpyEncoder,indent=4)
+
+        # ---- begin PDF report generation (with header + footer) ----
+       
+
+        report_path = os.path.join(out_dir, 'report.pdf')
+        with PdfPages(report_path) as pdf:
+            fig = plt.figure(figsize=(8.5, 11))
+            # make header taller to give more space, bump hspace
+            gs = gridspec.GridSpec(4, 2, figure=fig,
+                                height_ratios=[1.7, 3, 3, 3],
+                                hspace=1.0, wspace=0.3)
+
+            # Header
+            ax_hdr = fig.add_subplot(gs[0, :])
+            ax_hdr.axis('off')
+            pid = int(metadata['SubjectID'])
+            ser = int(metadata['Series'])
+            rx, ry, rz = metadata['Resolution']
+            ax_hdr.text(0.5, 0.80,
+                        f"Fetal brain measurements analysis for patient #{pid}",
+                        ha='center', va='center',
+                        fontsize=18, fontweight='bold')
+            ax_hdr.text(0.5, 0.50,
+                        f"Series: {ser}    Voxel size: {rx:.4g}×{ry:.4g}×{rz:.4g} mm",
+                        ha='center', va='center',
+                        fontsize=12)
+
+            # Row‐drawing helper
+            def draw_row(r, imgfile, label):
+                im_ax = fig.add_subplot(gs[r, 0])
+                im_ax.imshow(plt.imread(os.path.join(out_dir, imgfile)))
+                im_ax.axis('off')
+
+                tx_ax = fig.add_subplot(gs[r, 1])
+                tx_ax.axis('off')
+                tx_ax.text(0, 0.5, label,
+                        ha='left', va='center',
+                        fontsize=14, family='monospace')
+
+            # CBD (measured on the BBD slice)
+            draw_row(1, 'cbd.png',
+                    f"CBD (mm): {metadata['cbd_measure_mm']:.2f}\n"
+                    f"(slice #{metadata['BBD_selection']})")
+
+            # BBD
+            draw_row(2, 'bbd.png',
+                    f"BBD (mm): {metadata['bbd_measure_mm']:.2f}\n"
+                    f"(slice #{metadata['BBD_selection']})")
+
+            # TCD
+            draw_row(3, 'tcd.png',
+                    f"TCD (mm): {metadata['tcd_measure_mm']:.2f}\n"
+                    f"(slice #{metadata['TCD_selection']})")
+
+            # Footer: only brain volume
+            fig.text(0.05, 0.02,
+                    f"Brain volume (mm³): {metadata['brain_vol_mm3']:.0f}",
+                    fontsize=12)
+
+            pdf.savefig(fig, bbox_inches='tight')
+            plt.close(fig)
+        # ---- end PDF report generation ----
+
 
         return metadata
