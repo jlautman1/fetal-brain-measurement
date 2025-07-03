@@ -31,6 +31,8 @@ import CBD_BBD
 import msl
 
 import re
+from fetal_normative import normative_report_all
+
 
 # class NumpyEncoder(json.JSONEncoder):
 #     def default(self, obj):
@@ -314,38 +316,92 @@ class FetalMeasure(object):
         metadata["bbd_measure_mm"] = BBD_measure
         metadata["bbd_valid"] = BBD_valid
 
-        #print(np.linalg.norm(CBD_left - CBD_right) * res_x, np.linalg.norm(BBD_left - BBD_right) * res_x)
-        plt.figure()
-        plt.imshow(data_cropped[:, :, sl_bbd_slice])
-        cbd = np.stack([CBD_left, CBD_right]).T
-        plt.plot(cbd[1, :], cbd[0, :], 'r')
-        plt.savefig( os.path.normpath(os.path.join(out_dir, "cbd.png")))
-        plt.figure()
-        plt.imshow(data_cropped[:, :, sl_bbd_slice])
-        bbd = np.stack([BBD_left, BBD_right]).T
-        plt.plot(bbd[1, :], bbd[0, :], 'b-')
-        plt.savefig( os.path.normpath(os.path.join(out_dir, "bbd.png")))
+        # Professional measurement visualization plots
+        def create_professional_measurement_plot(image_data, points_left, points_right, 
+                                                measure_name, color, filename):
+            plt.figure(figsize=(6, 6))
+            plt.style.use('default')
+            
+            # Display the image with professional styling
+            plt.imshow(image_data, cmap='gray', aspect='equal')
+            
+            # Plot measurement line with professional styling
+            measurement_line = np.stack([points_left, points_right]).T
+            plt.plot(measurement_line[1, :], measurement_line[0, :], 
+                    color=color, linewidth=3, alpha=0.9, 
+                    label=f'{measure_name} Measurement')
+            
+            # Add measurement points
+            plt.scatter([points_left[1], points_right[1]], 
+                       [points_left[0], points_right[0]],
+                       color=color, s=60, edgecolor='white', 
+                       linewidth=2, zorder=10)
+            
+            # Professional styling
+            plt.title(f'{measure_name} Measurement Visualization', 
+                     fontsize=14, fontweight='bold', 
+                     color='#1f4e79', pad=15)
+            
+            plt.axis('off')  # Remove axes for cleaner look
+            
+            # Add legend
+            legend = plt.legend(loc='upper right', fontsize=11, 
+                               fancybox=True, shadow=True)
+            legend.get_frame().set_facecolor('white')
+            legend.get_frame().set_alpha(0.9)
+            
+            plt.tight_layout()
+            plt.savefig(os.path.normpath(os.path.join(out_dir, filename)), 
+                       dpi=200, bbox_inches='tight', 
+                       facecolor='white', edgecolor='none')
+            plt.close()
+
+        # Create professional measurement plots
+        create_professional_measurement_plot(data_cropped[:, :, sl_bbd_slice], 
+                                           CBD_left, CBD_right, 'CBD', 
+                                           '#dc3545', 'cbd.png')
+        
+        create_professional_measurement_plot(data_cropped[:, :, sl_bbd_slice], 
+                                           BBD_left, BBD_right, 'BBD', 
+                                           '#4a90e2', 'bbd.png')
 
         # TCD
-        plt.figure()
         p_u, p_d, _ = msl_p_points[sl_tcd_slice]
         TCD_measure, TCD_left, TCD_right, TCD_valid = CBD_BBD.TCD_points(subseg[:, :, sl_tcd_slice] == 2., p_u.astype(int), p_d.astype(int),
                                                  res_x, res_y)
         metadata["tcd_valid"] = TCD_valid
         metadata["tcd_points"] = (TCD_left, TCD_right)
         metadata["tcd_measure_mm"] = TCD_measure
-        plt.imshow(data_cropped[:, :, sl_tcd_slice])
-        if TCD_measure is not None:
-            tcd = np.stack([TCD_left, TCD_right]).T
-            plt.plot(tcd[1, :], tcd[0, :], 'k-')
-            plt.savefig( os.path.normpath(os.path.join(out_dir, "tcd.png")))
         
-        def predict_ga(val, col):
-            return float(np.interp(val, self.norm_df[f'{col}_mean'], self.norm_df.week))
+        # Create professional TCD plot
+        if TCD_measure is not None:
+            create_professional_measurement_plot(data_cropped[:, :, sl_tcd_slice], 
+                                               TCD_left, TCD_right, 'TCD', 
+                                               '#28a745', 'tcd.png')
+        else:
+            # Create placeholder plot if TCD measurement failed
+            plt.figure(figsize=(6, 6))
+            plt.imshow(data_cropped[:, :, sl_tcd_slice], cmap='gray', aspect='equal')
+            plt.title('TCD Measurement - Not Available', 
+                     fontsize=14, fontweight='bold', 
+                     color='#dc3545', pad=15)
+            plt.axis('off')
+            plt.text(0.5, 0.5, 'TCD measurement\ncould not be determined', 
+                    transform=plt.gca().transAxes,
+                    ha='center', va='center',
+                    fontsize=12, color='#dc3545',
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor='white', alpha=0.8))
+            plt.tight_layout()
+            plt.savefig(os.path.normpath(os.path.join(out_dir, "tcd.png")), 
+                       dpi=200, bbox_inches='tight', 
+                       facecolor='white', edgecolor='none')
+            plt.close()
+        
+        from fetal_normative import predict_ga_from_measurement
 
-        metadata["pred_ga_cbd"] = predict_ga(metadata["cbd_measure_mm"], 'cbd')
-        metadata["pred_ga_bbd"] = predict_ga(metadata["bbd_measure_mm"], 'bbd')
-        metadata["pred_ga_tcd"] = predict_ga(metadata["tcd_measure_mm"], 'tcd')
+        metadata["pred_ga_cbd"] = predict_ga_from_measurement(metadata["cbd_measure_mm"], "CBD")
+        metadata["pred_ga_bbd"] = predict_ga_from_measurement(metadata["bbd_measure_mm"], "BBD")
+        metadata["pred_ga_tcd"] = predict_ga_from_measurement(metadata["tcd_measure_mm"], "TCD")
         # Brain Volume Calc
 
         metadata["brain_vol_voxels"] = float(np.sum(fullseg > .5))
@@ -367,63 +423,201 @@ class FetalMeasure(object):
         with open(os.path.normpath(os.path.join(out_dir, 'data.json')), 'w') as fp:
             json.dump(metadata, fp, cls=NumpyEncoder,indent=4)
 
+        # --- Set gestational age week (default 30 for now, will be taken from metadata in future) ---
+        GA_week = int(metadata.get('GA_week', 30))
+        ga_source_note = ""
+        if 'GA_week' not in metadata:
+            ga_source_note = " (default)"
+
+        # --- Get measurement values ---
+        measured_dict = {
+            'CBD': float(metadata.get("cbd_measure_mm", 0)),
+            'BBD': float(metadata.get("bbd_measure_mm", 0)),
+            'TCD': float(metadata.get("tcd_measure_mm", 0))
+        }
+
+        # --- Generate normative plots and statistics ---
+        norm_results = normative_report_all(measured_dict, GA_week, out_dir)
+        # Now norm_results['CBD']['plot_path'] etc. are ready for PDF use
+
+
         # ---- begin PDF report generation (with GA predictions inline) ----
 
         report_path = os.path.join(out_dir, 'report.pdf')
         with PdfPages(report_path) as pdf:
             fig = plt.figure(figsize=(8.5, 11))
-            gs = gridspec.GridSpec(4, 2, figure=fig,
-                                height_ratios=[1.7, 3, 3, 3],
-                                hspace=1.0, wspace=0.3)
+            fig.patch.set_facecolor('white')
+            
+            # Create a more sophisticated grid layout
+            gs = gridspec.GridSpec(6, 4, figure=fig,
+                                    height_ratios=[0.5, 0.2, 1.2, 1.2, 1.2, 0.5],
+                                    width_ratios=[1, 1, 1, 1],
+                                    hspace=0.3, wspace=0.2,
+                                    left=0.08, right=0.92, top=0.92, bottom=0.08)
 
-            # Header
-            ax0 = fig.add_subplot(gs[0, :]); ax0.axis('off')
+            # Professional Header Section
+            ax_header = fig.add_subplot(gs[0, :])
+            ax_header.axis('off')
+            
+            # Main title with professional styling
+            ax_header.text(0.5, 0.85, 'FETAL BRAIN MEASUREMENTS', 
+                          ha='center', va='center',
+                          fontsize=24, fontweight='bold', 
+                          color='#1f4e79', family='serif')
+            
+            # Subtitle
+            ax_header.text(0.5, 0.45, 'Automated Analysis Report', 
+                          ha='center', va='center',
+                          fontsize=14, style='italic',
+                          color='#4a4a4a', family='serif')
+            
+            # Add a professional line separator
+            ax_header.axhline(y=0.1, xmin=0.1, xmax=0.9, color='#1f4e79', linewidth=2)
+
+            # Patient Information Section
+            ax_info = fig.add_subplot(gs[1, :])
+            ax_info.axis('off')
+            
             pid = int(metadata['SubjectID'])
             ser = int(metadata['Series'])
             rx, ry, rz = metadata['Resolution']
-            ax0.text(0.5, 0.80,
-                    f"Fetal brain measurements analysis for patient #{pid}",
-                    ha='center', va='center',
-                    fontsize=18, fontweight='bold')
-            ax0.text(0.5, 0.50,
-                    f"Series: {ser}    Voxel size: {rx:.4g}×{ry:.4g}×{rz:.4g} mm",
-                    ha='center', va='center',
-                    fontsize=12)
+            
+            # Create professional info boxes
+            info_text = f"""Patient ID: {pid}    •    Series: {ser}    •    Resolution: {rx:.3f}×{ry:.3f}×{rz:.3f} mm    •    GA: {GA_week}w{ga_source_note}"""
+            
+            ax_info.text(0.5, 0.5, info_text,
+                        ha='center', va='center',
+                        fontsize=11, color='#333333',
+                        bbox=dict(boxstyle="round,pad=0.3", facecolor='#f8f9fa', edgecolor='#dee2e6'))
 
-            def draw_row(r, imgfile, label):
-                ax_im = fig.add_subplot(gs[r, 0])
-                ax_im.imshow(plt.imread(os.path.join(out_dir, imgfile)))
-                ax_im.axis('off')
-                ax_tx = fig.add_subplot(gs[r, 1])
-                ax_tx.axis('off')
-                ax_tx.text(0, 0.5, label,
-                        ha='left', va='center',
-                        fontsize=14, family='monospace')
+            # Professional color scheme
+            colors = {
+                'primary': '#1f4e79',
+                'secondary': '#4a90e2', 
+                'success': '#28a745',
+                'warning': '#ffc107',
+                'danger': '#dc3545',
+                'light': '#f8f9fa',
+                'dark': '#343a40'
+            }
 
-            # CBD row
-            draw_row(1, 'cbd.png',
-                    f"CBD (mm): {metadata['cbd_measure_mm']:.2f}\n"
-                    f"Pred GA: {metadata['pred_ga_cbd']:.1f} wk\n"
-                    f"(slice #{metadata['BBD_selection']})")
+            def get_status_color(status):
+                if status == "Normal":
+                    return colors['success']
+                elif status == "Below Norm":
+                    return colors['warning']
+                else:
+                    return colors['danger']
 
-            # BBD row
-            draw_row(2, 'bbd.png',
-                    f"BBD (mm): {metadata['bbd_measure_mm']:.2f}\n"
-                    f"Pred GA: {metadata['pred_ga_bbd']:.1f} wk\n"
-                    f"(slice #{metadata['BBD_selection']})")
+            def create_measurement_row(row_idx, measure_name, image_file, value, pred_ga, 
+                                     plot_path, status, slice_num, validity=True):
+                # Image section
+                ax_img = fig.add_subplot(gs[row_idx + 2, 0])
+                img = plt.imread(os.path.join(out_dir, image_file))
+                ax_img.imshow(img)
+                ax_img.axis('off')
+                ax_img.set_title(f'{measure_name} Measurement', fontsize=11, fontweight='bold', 
+                               color=colors['primary'], pad=10)
+                
+                # Add professional border around image
+                for spine in ax_img.spines.values():
+                    spine.set_visible(True)
+                    spine.set_color('#dee2e6')
+                    spine.set_linewidth(1)
 
-            # TCD row
-            draw_row(3, 'tcd.png',
-                    f"TCD (mm): {metadata['tcd_measure_mm']:.2f}\n"
-                    f"Pred GA: {metadata['pred_ga_tcd']:.1f} wk\n"
-                    f"(slice #{metadata['TCD_selection']})")
+                # Measurement details section
+                ax_details = fig.add_subplot(gs[row_idx + 2, 1])
+                ax_details.axis('off')
+                
+                # Create professional measurement card
+                details_text = f"""
+{measure_name} Measurement
+{'─' * 15}
+Value: {value:.2f} mm
+Predicted GA: {pred_ga} weeks
+Slice: #{slice_num}
+Status: {status}
+Valid: {'Yes' if validity else 'No'}
+"""
+                
+                ax_details.text(0.05, 0.5, details_text,
+                              ha='left', va='center',
+                              fontsize=10, family='monospace',
+                              bbox=dict(boxstyle="round,pad=0.5", 
+                                      facecolor=colors['light'], 
+                                      edgecolor='#dee2e6',
+                                      linewidth=1))
 
-            # Footer: only brain volume
-            fig.text(0.05, 0.02,
-                    f"Brain volume (mm³): {metadata['brain_vol_mm3']:.0f}",
-                    fontsize=12)
+                # Normative plot section
+                ax_plot = fig.add_subplot(gs[row_idx + 2, 2:])
+                plot_img = plt.imread(plot_path)
+                ax_plot.imshow(plot_img)
+                ax_plot.axis('off')
+                
+                # Status indicator with professional styling
+                status_display = {"Below Norm": "Below Normal Range", 
+                                "Above Norm": "Above Normal Range", 
+                                "Normal": "Within Normal Range"}[status]
+                
+                ax_plot.set_title(f'Normative Analysis: {status_display}',
+                                fontsize=11, fontweight='bold',
+                                color=get_status_color(status), pad=10)
+                
+                # Add border around plot
+                for spine in ax_plot.spines.values():
+                    spine.set_visible(True)
+                    spine.set_color('#dee2e6')
+                    spine.set_linewidth(1)
 
-            pdf.savefig(fig, bbox_inches='tight')
+            # Create measurement rows
+            create_measurement_row(0, 'CBD', 'cbd.png', 
+                                 metadata['cbd_measure_mm'], metadata['pred_ga_cbd'],
+                                 norm_results['CBD']['plot_path'], norm_results['CBD']['status'],
+                                 metadata['BBD_selection'])
+            
+            create_measurement_row(1, 'BBD', 'bbd.png',
+                                 metadata['bbd_measure_mm'], metadata['pred_ga_bbd'],
+                                 norm_results['BBD']['plot_path'], norm_results['BBD']['status'],
+                                 metadata['BBD_selection'], metadata['bbd_valid'])
+            
+            create_measurement_row(2, 'TCD', 'tcd.png',
+                                 metadata['tcd_measure_mm'], metadata['pred_ga_tcd'],
+                                 norm_results['TCD']['plot_path'], norm_results['TCD']['status'],
+                                 metadata['TCD_selection'], metadata['tcd_valid'])
+
+            # Professional Summary Section
+            ax_summary = fig.add_subplot(gs[5, :])
+            ax_summary.axis('off')
+            
+            # Add summary box with professional styling
+            summary_text = f"""SUMMARY STATISTICS
+Brain Volume: {metadata['brain_vol_mm3']:.0f} mm³  •  Total Voxels: {int(metadata['brain_vol_voxels'])}
+TCD Slice Selection: {'Valid' if metadata['TCD_selectionValid'] else 'Invalid'}  •  BBD Slice Selection: {'Valid' if metadata['BBD_selectionValid'] else 'Invalid'}"""
+            
+            ax_summary.text(0.5, 0.8, summary_text,
+                          ha='center', va='center',
+                          fontsize=10, color='#333333',
+                          bbox=dict(boxstyle="round,pad=0.4", 
+                                  facecolor='#e8f4f8', 
+                                  edgecolor=colors['primary'],
+                                  linewidth=1))
+            
+            # Professional disclaimer - positioned lower to avoid overlap
+            disclaimer = """This automated analysis is for research purposes only. Clinical decisions should not be based solely on these measurements.
+Please consult with qualified medical professionals for clinical interpretation."""
+            
+            ax_summary.text(0.5, 0.3, disclaimer,
+                          ha='center', va='center',
+                          fontsize=8, style='italic', color='#666666',
+                          bbox=dict(boxstyle="round,pad=0.3", 
+                                  facecolor='#f8f9fa', 
+                                  edgecolor='#dee2e6',
+                                  alpha=0.8))
+
+            # Add professional footer line
+            ax_summary.axhline(y=0.05, xmin=0.1, xmax=0.9, color='#dee2e6', linewidth=1)
+
+            pdf.savefig(fig, bbox_inches='tight', dpi=300, facecolor='white')
             plt.close(fig)
         # ---- end PDF report generation ----
 
