@@ -594,7 +594,7 @@ Valid: {'Yes' if validity else 'No'}
 Brain Volume: {metadata['brain_vol_mm3']:.0f} mm³  •  Total Voxels: {int(metadata['brain_vol_voxels'])}
 TCD Slice Selection: {'Valid' if metadata['TCD_selectionValid'] else 'Invalid'}  •  BBD Slice Selection: {'Valid' if metadata['BBD_selectionValid'] else 'Invalid'}"""
             
-            ax_summary.text(0.5, 0.8, summary_text,
+            ax_summary.text(0.5, 0.9, summary_text,
                           ha='center', va='center',
                           fontsize=10, color='#333333',
                           bbox=dict(boxstyle="round,pad=0.4", 
