@@ -3,6 +3,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import pandas as pd
+from scipy.interpolate import interp1d
+
+# — load the “hard” normative mm data —
+_module_dir = os.path.dirname(__file__)
+_NORM_DF   = pd.read_csv(os.path.join(_module_dir, 'Normative.csv'))
 
 # Regression model and SD for each measurement
 def get_regression_stats(week, measure):
@@ -20,14 +26,27 @@ def get_regression_stats(week, measure):
     return mean, sd
 
 def get_normative_curve(measure):
-    weeks = np.arange(22, 39)
-    means = []
-    sds = []
-    for w in weeks:
-        mean, sd = get_regression_stats(w, measure)
-        means.append(mean)
-        sds.append(sd)
-    return weeks, np.array(means), np.array(sds)
+    """
+    Interpolate medians from Normative.csv for CBD, BBD or TCD.
+    Returns (weeks, means, sds) for plotting ±2 SD bands.
+    """
+    # map measure → column name
+    col = {'CBD':'cbd_mean','BBD':'bbd_mean','TCD':'tcd_mean'}[measure]
+    x = _NORM_DF['week'].values
+    y = _NORM_DF[col].values
+
+    # build linear interpolator
+    f = interp1d(x, y, kind='linear', fill_value='extrapolate')
+
+    # choose integer GA grid (you can adjust step if you want halves)
+    weeks = np.arange(x.min(), x.max() + 1, 1.0)
+    means = f(weeks)
+
+    # use same SDs you had before (5 mm for CBD/BBD, 3 mm for TCD)
+    sd_val = 5.0 if measure in ('CBD','BBD') else 3.0
+    sds = np.full_like(means, sd_val)
+
+    return weeks, means, sds
 
 def get_status(value, mean, sd):
     if value < mean - 2 * sd:
