@@ -52,9 +52,8 @@ docker pull jlautman1/fetal-pipeline-gpu-rebuilt:latest
 Adapt this path to your local system:
 
 ```bash
-docker run --gpus all -it \
-  -v /your/local/path/fetal-brain-measurement:/workspace/fetal-brain-measurement \
-  jlautman1/fetal-pipeline-gpu-rebuilt:latest bash
+docker run --gpus all -it -v "/your/local/path/fetal-brain-measurement:/workspace/fetal-brain-measurement" fetal-pipeline-gpu-rebuilt bash
+
 ```
 
 ### 4. Inside the container, run the pipeline
