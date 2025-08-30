@@ -428,7 +428,7 @@ class FetalMeasure(object):
         ga_source_note = ""
         if 'GA_week' not in metadata:
             ga_source_note = " (default)"
-
+        
         # --- Get measurement values ---
         measured_dict = {
             'CBD': float(metadata.get("cbd_measure_mm", 0)),
