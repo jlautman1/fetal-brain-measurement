@@ -108,8 +108,10 @@ See [report.pdf](report.pdf) for a sample output.
 Includes:
 
 * Annotated slice views with CBD, BBD, and TCD lines
-* Normative percentile graphs based on gestational age
 * Brain volume and voxel statistics
+* Normative percentile graphs based on gestational age - based on the following graph:
+![תמונה של WhatsApp‏ 2025-08-30 בשעה 19 16 10_5c705087](https://github.com/user-attachments/assets/fef501ac-f219-4c0c-8989-b125a4f21dd7)
+
 
 ---
 
