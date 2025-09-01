@@ -1,0 +1,87 @@
+{
+  "test_timestamp": 1756740165.5501125,
+  "test_summary": {
+    "file_structure": "fail",
+    "dummy_build": "success",
+    "real_build": "failed"
+  },
+  "detailed_results": {
+    "file_structure": {
+      "existing_files": [
+        [
+          "fetal-brain-measurement/openrecon.py",
+          "Main OpenRecon i2i handler",
+          25042
+        ],
+        [
+          "fetal-brain-measurement/openrecon.json",
+          "OpenRecon configuration",
+          900
+        ],
+        [
+          "fetal-brain-measurement/dummy_openrecon.py",
+          "Dummy OpenRecon handler",
+          5012
+        ],
+        [
+          "fetal-brain-measurement/dummy_openrecon.json",
+          "Dummy configuration",
+          911
+        ],
+        [
+          "fetal-brain-measurement/Dockerfile.dummy",
+          "Dummy Dockerfile",
+          1520
+        ],
+        [
+          "python-ismrmrd-server/openrecon_json_ui.json",
+          "OpenRecon UI metadata",
+          2062
+        ],
+        [
+          "python-ismrmrd-server/OpenReconSchema_1.1.0.json",
+          "OpenRecon schema",
+          14602
+        ],
+        [
+          "python-ismrmrd-server/main.py",
+          "OpenRecon server main",
+          3118
+        ],
+        [
+          "fetal-brain-measurement/Dockerfile",
+          "Original working Dockerfile",
+          1636
+        ],
+        [
+          "fetal-brain-measurement/requirements.txt",
+          "Python dependencies",
+          3771
+        ],
+        [
+          "fetal-brain-measurement/Code/FetalMeasurements-master/execute.py",
+          "Fetal pipeline main",
+          2464
+        ]
+      ],
+      "missing_files": [
+        [
+          "fetal-brain-measurement/Dockerfile.openrecon.solid",
+          "Solid production Dockerfile"
+        ]
+      ],
+      "status": "fail"
+    },
+    "dummy_build": {
+      "status": "success",
+      "image_name": "openrecon-dummy:test"
+    },
+    "real_build": {
+      "status": "failed",
+      "error": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile.openrecon.solid\n#1 transferring dockerfile: 2B 0.0s done\n#1 DONE 0.1s\nERROR: failed to solve: failed to read dockerfile: open Dockerfile.openrecon.solid: no such file or directory\n"
+    },
+    "docker_tests": {},
+    "overall_status": "unknown"
+  },
+  "overall_status": "SOME_TESTS_FAILED"
+}

@@ -1,0 +1,47 @@
+# ------------------------------------------------------------
+#  Dummy OpenRecon Handler for Testing Deployment
+#  Minimal implementation to verify OpenRecon packaging process
+# ------------------------------------------------------------
+FROM python:3.8-slim
+
+WORKDIR /workspace
+
+# Install minimal dependencies for dummy handler
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+        && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Python packages for dummy OpenRecon
+RUN pip install --no-cache-dir \
+    numpy \
+    h5py \
+    xmltodict \
+    ismrmrd \
+    matplotlib \
+    pydicom \
+    Pillow
+
+# Copy python-ismrmrd-server for OpenRecon framework
+COPY python-ismrmrd-server/ /opt/code/python-ismrmrd-server/
+
+# Copy dummy handler files
+COPY fetal-brain-measurement/dummy_openrecon.py /opt/code/python-ismrmrd-server/
+COPY fetal-brain-measurement/dummy_openrecon.json /opt/code/python-ismrmrd-server/
+
+# Create output directory for dummy measurements
+RUN mkdir -p /tmp/share/dummy_measurements
+
+# Set working directory to OpenRecon server
+WORKDIR /opt/code/python-ismrmrd-server
+
+# Health check for dummy server
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import socket; s=socket.socket(); s.connect(('localhost', 9002)); s.close()" || exit 1
+
+# Expose the OpenRecon port
+EXPOSE 9002
+
+# Run OpenRecon server with dummy handler
+CMD ["python", "main.py", "-v", "-d=dummy_openrecon"]

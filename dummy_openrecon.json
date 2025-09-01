@@ -1,0 +1,28 @@
+{
+    "version": "1.0.0",
+    "description": "Dummy OpenRecon configuration for testing deployment and comparison",
+    "parameters": {
+        "processRawData": "false",
+        "processImageData": "true", 
+        "debugOutput": "true",
+        "enableDummyMeasurements": "true",
+        "outputDirectory": "/tmp/share/dummy_measurements",
+        "borderIntensity": "0.1"
+    },
+    "dummy_settings": {
+        "add_image_borders": "true",
+        "create_measurement_files": "true", 
+        "simulate_processing_time": "true"
+    },
+    "output_settings": {
+        "create_summary_file": "true",
+        "embed_dummy_metadata": "true",
+        "save_individual_results": "true"
+    },
+    "test_settings": {
+        "dummy_measurement_1_base": 42.5,
+        "dummy_measurement_2_base": 37.2,
+        "dummy_measurement_3_base": 15.8,
+        "processing_delay_ms": 100
+    }
+}
